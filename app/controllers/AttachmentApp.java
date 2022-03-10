@@ -7,7 +7,6 @@
 package controllers;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import controllers.annotation.AnonymousCheck;
 import models.Attachment;
 import models.User;
 import models.enumeration.Operation;
@@ -33,7 +32,6 @@ import java.util.Map;
 
 import static play.libs.Json.toJson;
 
-@AnonymousCheck
 public class AttachmentApp extends Controller {
 
     public static final String TAG_NAME_FOR_TEMPORARY_UPLOAD_FILES = "temporaryUploadFiles";
@@ -138,10 +136,6 @@ public class AttachmentApp extends Controller {
         }
 
         String eTag = "\"" + attachment.hash + "-" + dispositionType + "\"";
-
-        if (!AccessControl.isAllowed(UserApp.currentUser(), attachment.asResource(), Operation.READ)) {
-            return forbidden("You have no permission to get the file.");
-        }
 
         response().setHeader("Cache-Control", "private, max-age=3600");
 
