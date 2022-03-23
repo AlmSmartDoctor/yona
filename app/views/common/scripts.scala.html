@@ -47,6 +47,8 @@
 <script type="text/javascript" src="@routes.Assets.at("javascripts/yona-lib.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/lib/autosize/autosize.min.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/common/yona.KeyControl.js")"></script>
+<script type="text/javascript" src="@routes.Assets.at("javascripts/lib/tippy/popper.min.js")"></script>
+<script type="text/javascript" src="@routes.Assets.at("javascripts/lib/tippy/tippy-bundle.umd.min.js")"></script>
 
 <script type="text/javascript">
     $yobi.setScriptPath("@getJSPath");
@@ -103,36 +105,20 @@
             "maxFileSize": "@play.Configuration.root().getLong("application.maxFileSize", 2147483454L)"  // 2Gb
         });
 
-        // ajax for issue link detail(ui.IssuePreview)
-        $(document).on("mouseover", ".issueLink", function(){
-            var welTarget = $(this);
+        // Inner link URL preview tooltip
+        $(".issueLink").each(function(index) {
+            var $this = $(this);
+            var url = decodeURI($this.attr("href"));
 
-            welTarget.tooltip({
-                "title": "@Messages("site.massMail.loading")",
-                "placement": "right"
-            }).tooltip("show");
-
-            $.getJSON(welTarget.attr("href"), function(htData){
-                if(welTarget.tooltip){
-                    welTarget.tooltip("hide");
-                }
-
-                welTarget.popover({
-                    "title"    : htData.title.replace('<', '&lt;'),
-                    "content"  : $yobi.xssClean(htData.body),
-                    "html"     : true,
-                    "placement": "right",
-                    "trigger"  : "hover"
-                }).popover("show");
+            tippy($this[0], {
+                content: url,
+                delay: [1000, 100],
+                placement: 'top-start',
+                theme: 'light-border',
+                maxWidth: 'none',
+                arrow: false
             });
-        });
-
-        $(document).on("mouseleave", ".issueLink", function(){
-            var welTarget = $(this);
-            welTarget.tooltip("destroy");
-            welTarget.popover("hide");
-        });
-
+        })
 
         if(navigator.userAgent.match(/MSIE ([0-9])\./)){
            $('.unsupported').show();
@@ -197,5 +183,16 @@
             });
         }
 
+        // when to click a link in the iframe page, match browser URL
+        if (window.parent !== window) {
+            $("a.ago, .head-anchor").on("click", function () {
+                var $this = $(this);
+                if (!history.state) {
+                    window.parent.history.pushState({ startPath: location.pathname }, $this.text(), $this.attr("href"));
+                } else {
+                    window.parent.history.replaceState(history.state, $this.text(), $this.attr("href"));
+                }
+            });
+        }
     });
 </script>

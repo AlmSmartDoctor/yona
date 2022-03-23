@@ -17,6 +17,7 @@
 @import utils.Markdown
 @import models.enumeration.State
 @import controllers.api.IssueApi
+@import org.apache.commons.codec.digest.DigestUtils
 
 @getTitle(issue:Issue) = @{ issue.title }
 
@@ -152,7 +153,15 @@
                             </div>
                         } else {
                             <div class="posting-history">
-                                <a href="#-yona-posting-history" data-toggle="modal">@Messages("change.history")</a>
+                                <a href="#-yona-posting-history" data-toggle="modal">
+                                    @if(issue.updatedByAuthorId != null) {
+                                        <span class="lastUpdatedBy">
+                                            <span>@User.find.byId(issue.updatedByAuthorId).getPureNameOnly</span>
+                                            <span>@agoOrDateString(issue.updatedDate)</span>
+                                        </span>
+                                    }
+                                    <span>@Messages("change.edited")</span>
+                                </a>
                                 @common.partial_history(issue)
                             </div>
                         }
@@ -421,11 +430,22 @@
                         </div>
                         @**<!-- // -->**@
                     </form>
+                    <div id="comments" class="board-comment-wrap">
+                        <div id="timeline">
+                            <div class="timeline-list">
+                            @partial_index_comments(project, issue)
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-
+        <div>
+            <input type="hidden" id="issueBodyChecksum" value="@DigestUtils.sha1Hex(issue.body)">
+            <input type="hidden" id="numOfComments" value="@issue.computeNumOfComments()">
+            <input type="hidden" id="issueUpdateDate" value="@issue.updatedDate.getTime">
+        </div>
         <div class="board-footer">
             @help.keymap("issueDetail", project)
         </div>
@@ -460,15 +480,20 @@
 <link rel="stylesheet" type="text/css" media="screen" href="@routes.IssueLabelApp.labelStyles(project.owner, project.name)">
 <link rel="stylesheet" type="text/css" media="screen" href="@routes.Assets.at("javascripts/lib/atjs/jquery.atwho.css")">
 <link rel="stylesheet" type="text/css" media="screen" href="@routes.Assets.at("javascripts/lib/elevator/jquery.elevator.css")">
+<link rel="stylesheet" type="text/css" media="screen" href="@routes.Assets.at("javascripts/lib/videojs/video-js.min.css")">
 <script type="text/javascript" src="@routes.Assets.at("javascripts/lib/atjs/jquery.caret.min.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/lib/atjs/jquery.atwho.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/lib/elevator/jquery.elevator.js")"></script>
+<script type="text/javascript" src="@routes.Assets.at("javascripts/lib/videojs/video.min.js")"></script>
+<script type="text/javascript" src="@routes.Assets.at("javascripts/lib/favico/favico.min.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/service/yona.issue.Assginee.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/service/yona.issue.Sharer.js")"></script>
+<script type="text/javascript" src="@routes.Assets.at("javascripts/service/yona.detectChange.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/common/yona.Sha1.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/common/yona.Tasklist.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/common/yona.SubComment.js")"></script>
 <script type="text/javascript" src="@routes.Assets.at("javascripts/common/yona.CommentAttachmentsUpdate.js")"></script>
+<script type="text/javascript" src="@routes.Assets.at("javascripts/common/yona.ReceiverList.js")"></script>
 <script type="text/javascript">
     $(function(){
         // yobi.issue.View
@@ -497,7 +522,7 @@
 
         // yobi.Mention
         yobi.Mention({
-            "target": 'textarea[id^=editor-]',
+            "target": 'textarea[id^=editor-], .editorSeries',
             "url"   : "@Html(routes.ProjectApp.mentionList(project.owner, project.name, issue.getNumber, issue.asResource().getType.resource()).toString())"
         });
 
@@ -603,6 +628,29 @@
                     $(".weight-number").html(data.weight);
                 });
             });
-        });
+
+            $(".editorSeries")
+                .on("focus", function () {
+                    $(this).closest("form").find(".notification-receiver").show()
+                    findNotiReceiversHandler(
+                            $(this),
+                            "@api.routes.IssueApi.commentNotiRecivers(project.owner, project.name, issue.getNumber)"
+                    )
+                })
+                .on("focusout", function () {
+                    unbindFindNotiReceiversHandler($(this))
+                });
+
+            $(".index-comment").on("click", function(){
+                window.location = $(this).data("location");
+                if (!history.state) {
+                    window.parent.history.pushState({ startPath: location.pathname }, document.title, window.location);
+                } else {
+                    window.parent.history.replaceState(history.state, document.title, window.location);
+                }
+            });
+
+            detectPageChange("@api.routes.IssueApi.detectChange(project.owner, project.name, issue.getNumber)")
+        })
 </script>
 }

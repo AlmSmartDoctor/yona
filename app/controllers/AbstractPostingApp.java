@@ -33,6 +33,7 @@ import static utils.diff_match_patch.Diff;
 @AnonymousCheck
 public class AbstractPostingApp extends Controller {
     public static final int ITEMS_PER_PAGE = 15;
+    private static final short Diff_EditCost = 16;
 
     public static class SearchCondition {
         public String orderBy;
@@ -101,6 +102,7 @@ public class AbstractPostingApp extends Controller {
         posting.authorName = original.authorName;
         posting.project = original.project;
         posting.setNumber(original.getNumber());
+        posting.updatedByAuthorId = UserApp.currentUser().id;
         if (!StringUtils.defaultString(original.body, "").equals(StringUtils.defaultString(posting.body, ""))) {
             posting.history = addToHistory(original, posting) + StringUtils.defaultString(original.history, "");
         }
@@ -126,7 +128,7 @@ public class AbstractPostingApp extends Controller {
 
     private static String addToHistory(AbstractPosting original, AbstractPosting posting) {
         diff_match_patch dmp = new diff_match_patch();
-        dmp.Diff_EditCost = 8;
+        dmp.Diff_EditCost = Diff_EditCost;
         LinkedList<diff_match_patch.Diff> diffs = dmp.diff_main(original.body, posting.body);
         dmp.diff_cleanupEfficiency(diffs);
 
@@ -170,7 +172,7 @@ public class AbstractPostingApp extends Controller {
     private static String getDiffText(String oldValue, String newValue) {
         final int EQUAL_TEXT_ELLIPSIS_SIZE = 100;
         diff_match_patch dmp = new diff_match_patch();
-        dmp.Diff_EditCost = 8;
+        dmp.Diff_EditCost = Diff_EditCost;
         StringBuilder sb = new StringBuilder();
         if (oldValue != null) {
             LinkedList<diff_match_patch.Diff> diffs = dmp.diff_main(oldValue, newValue);

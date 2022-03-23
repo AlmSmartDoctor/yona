@@ -49,6 +49,7 @@ POST           /-_-api/v1/owners/:owner/projects/:projectName/issues/imports    
 
 POST           /-_-api/v1/owners/:owner/projects/:projectName/postlabel/:number        controllers.api.BoardApi.updatePostLabel(owner:String, projectName:String, number:Long)
 POST           /-_-api/v1/owners/:owner/projects/:projectName/issues                   controllers.api.IssueApi.newIssues(owner:String, projectName:String)
+POST            /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/commentNotiReceivers  controllers.api.IssueApi.commentNotiRecivers(owner:String, projectName:String, number:Long)
 POST           /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/comments  controllers.api.IssueApi.newIssueComment(owner:String, projectName:String, number:Long)
 PUT            /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/comments/:commentId  controllers.api.IssueApi.updateIssueComment(owner:String, projectName:String, number:Long, commentId:Long)
 POST           /-_-api/v1/owners/:owner/projects/:projectName/issuelabel/:number       controllers.api.IssueApi.updateIssueLabel(owner:String, projectName:String, number:Long)
@@ -69,6 +70,7 @@ POST           /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/sha
 POST           /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/upvoteWeight       controllers.api.IssueApi.upvoteWeight(owner:String, projectName:String, number:Long)
 POST           /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/downvoteWeight     controllers.api.IssueApi.downvoteWeight(owner:String, projectName:String, number:Long)
 GET            /-_-api/v1/owners/:owner/projects/:projectName/issues/:number                    controllers.api.IssueApi.getIssue(owner: String, projectName: String, number: Long)
+POST           /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/detectChange       controllers.api.IssueApi.detectChange(owner: String, projectName: String, number: Long)
 PUT            /-_-api/v1/owners/:owner/projects/:projectName/issues/:number                    controllers.api.IssueApi.updateIssue(owner: String, projectName: String, number: Long)
 PATCH          /-_-api/v1/owners/:owner/projects/:projectName/issues/:number                    controllers.api.IssueApi.updateIssueState(owner: String, projectName: String, number: Long)
 PATCH          /-_-api/v1/owners/:owner/projects/:projectName/issues/:number/content            controllers.api.IssueApi.updateIssueContent(owner: String, projectName: String, number: Long)
@@ -79,11 +81,13 @@ GET            /-_-api/v1/user/issues                                           
 POST           /-_-api/v1/owners/:owner/projects                                       controllers.api.ProjectApi.newProject(owner:String)
 POST           /-_-api/v1/owners/:owner/projects/:projectName/labels                   controllers.api.ProjectApi.newLabel(owner:String, projectName:String)
 GET            /-_-api/v1/owners/:owner/projects/:projectName/titleHeads               controllers.api.ProjectApi.titleHeads(owner:String, projectName:String, query: String ?= "")
+GET            /-_-api/v1/users/:user/statistics                                       controllers.api.UserApi.statistics(user: String)
 
 POST           /-_-api/v1/user/defultLoginPage                                         controllers.UserApp.setDefaultLoginPage()
 POST           /-_-api/v1/translation                                                  controllers.api.IssueApi.translate()
 
-
+GET            /-_-api/v1/admin/users                                                  controllers.api.UserApi.users()
+PATCH          /-_-api/v1/admin/users/:user                                            controllers.api.UserApi.updateUserState(user: String)
 
 # Import
 GET            /_import                                                                 controllers.ImportApp.importForm()

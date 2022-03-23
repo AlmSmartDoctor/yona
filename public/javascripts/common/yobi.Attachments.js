@@ -440,10 +440,12 @@ yobi.Attachments = function(htOptions) {
             return '!' + sLinkText;
         } else if (isHtml5Video(sMimeType)) {
             return $('<div>').append(
-                    $('<video>').attr('controls', true)
-                    .append($('<source>').attr('src', sFilePath))
-                    .append(sLinkText)
-                   ).html();
+                $(`<video class="video-js" data-setup='{}'>`)
+                    .attr('controls', true)
+                    .append($('<source>')
+                        .attr('src', sFilePath)
+                        .attr('type', sMimeType))
+            ).append(sLinkText).html();
 
         } else {
             return sLinkText;

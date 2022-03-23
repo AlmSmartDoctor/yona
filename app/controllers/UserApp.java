@@ -68,7 +68,7 @@ public class UserApp extends Controller {
     private static final int AVATAR_FILE_LIMIT_SIZE = 1024*1000*1; //1M
     public static final int MAX_FETCH_USERS = 10;  //Match value to Typeahead deafult value at yobi.ui.Typeaheds.js
     private static final int HASH_ITERATIONS = 1024;
-    public static final int DAYS_AGO = 7;
+    public static final int DAYS_AGO = 14;
     public static final int UNDEFINED = 0;
     public static final String DAYS_AGO_COOKIE = "daysAgo";
     public static final String DEFAULT_GROUP = "own";
@@ -434,13 +434,10 @@ public class UserApp extends Controller {
         CandidateUser candidateUser = new CandidateUser(userCredential.name, userCredential.email);
         User created = createUserDelegate(candidateUser);
 
-        if(isUsingEmailVerification() && created.isLocked()){
-            flash(Constants.INFO, "user.verification.mail.sent");
-            forceOAuthLogout();
-        } else if (created.state == UserState.LOCKED) {
-            flash(Constants.INFO, "user.signup.requested");
-            forceOAuthLogout();
-        }
+        // checking is delegated to oAuth
+        created.refresh();
+        created.state = UserState.ACTIVE;
+        created.update();
 
         //Also, update userCredential
         userCredential.loginId = created.loginId;

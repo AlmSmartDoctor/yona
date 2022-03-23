@@ -6,6 +6,8 @@
  **/
 package models;
 
+import static com.avaje.ebean.Expr.eq;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -38,7 +40,9 @@ import org.apache.shiro.util.CollectionUtils;
 import com.avaje.ebean.Ebean;
 import com.avaje.ebean.ExpressionList;
 import com.avaje.ebean.Page;
+import com.avaje.ebean.RawSqlBuilder;
 import com.avaje.ebean.annotation.Formula;
+import play.db.ebean.Model.Finder;
 
 import jxl.Workbook;
 import jxl.format.Alignment;
@@ -60,11 +64,8 @@ import models.resource.Resource;
 import models.support.SearchCondition;
 import play.data.Form;
 import play.data.format.Formats;
-import play.db.ebean.Model.Finder;
 import play.i18n.Messages;
 import utils.JodaDateUtil;
-
-import static com.avaje.ebean.Expr.eq;
 
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"project_id", "number"}))
@@ -229,6 +230,30 @@ public class Issue extends AbstractPosting implements LabelOwner {
     public void save() {
         updateAssignee();
         super.save();
+    }
+
+    public static int countAllAssignedBy(User user) {
+        String template = "SELECT issue.id FROM issue \n" +
+                "INNER JOIN assignee ON issue.assignee_id = assignee.id \n" +
+                "WHERE assignee.user_id = %d";
+        String sql = String.format(template, user.id);
+        Set<Issue> set = finder.setRawSql(RawSqlBuilder.parse(sql).create()).findSet();
+        return set.size();
+    }
+
+    public static int countVoterOf(User user) {
+        String template = "SELECT issue.id " +
+                "FROM issue " +
+                "INNER JOIN issue_voter " +
+                "ON issue.id = issue_voter.issue_id " +
+                "WHERE issue_voter.user_id = %d";
+        String sql = String.format(template, user.id);
+        Set<Issue> set = finder.setRawSql(RawSqlBuilder.parse(sql).create()).findSet();
+        return set.size();
+    }
+
+    public static int countAllCreatedBy(User user) {
+        return finder.where().eq("author_id", user.id).findRowCount();
     }
 
     public static int countIssues(Long projectId, State state) {
@@ -510,6 +535,16 @@ public class Issue extends AbstractPosting implements LabelOwner {
     public static List<Issue> findByProject(Project project, String filter, int limit) {
         ExpressionList<Issue> el = finder.where()
                 .eq("project.id", project.id);
+        if(StringUtils.isNotEmpty(filter)){
+            el.icontains("title", filter);
+        }
+        return el.setMaxRows(limit).order().desc("createdDate").findList();
+    }
+
+    public static List<Issue> findParentIssueByProject(Project project, String filter, int limit) {
+        ExpressionList<Issue> el = finder.where()
+                .eq("project.id", project.id)
+                .isNull("parent");
         if(StringUtils.isNotEmpty(filter)){
             el.icontains("title", filter);
         }

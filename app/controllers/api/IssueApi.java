@@ -336,10 +336,11 @@ public class IssueApi extends AbstractPostingApp {
             return forbidden(Json.newObject().put("message", "Forbidden request"));
         }
 
+        // TODO: It is TOO bulky comparing whole text
         String content = json.findValue("content").asText();
-        String rememberedChecksum = json.findValue("sha1").asText();
+        String original = json.findValue("original").asText();
 
-        if (isModifiedByOthers(issue.body, rememberedChecksum)) {
+        if (isModifiedByOthers(issue.body, original)) {
             return conflicted(issue.body);
         }
 
@@ -473,6 +474,43 @@ public class IssueApi extends AbstractPostingApp {
         }
     }
 
+    public static Result commentNotiRecivers(String ownerName, String projectName, Long number) {
+        JsonNode json = request().body().asJson();
+        if (json == null) {
+            return badRequest(Json.newObject().put("message", "Expecting Json data"));
+        }
+
+        Project project = Project.findByOwnerAndProjectName(ownerName, projectName);
+        final Issue issue = Issue.findByNumber(project, number);
+        User user = UserApp.currentUser();
+
+        String commentText = json.findValue("comment").asText();
+        String parentCommentId = json.findValue("parentCommentId").asText();
+
+        final IssueComment comment = new IssueComment(issue, user, commentText);
+
+        comment.createdDate = JodaDateUtil.now();
+        comment.setAuthor(user);
+        comment.issue = issue;
+
+        if (StringUtils.isNotBlank(parentCommentId)) {
+           comment.parentCommentId = parentCommentId;
+           comment.setParentComment(IssueComment.find.byId(json.findValue("parentCommentId").asLong()));
+        }
+
+        Set<User> receivers = NotificationEvent.getMandatoryReceivers(comment, EventType.NEW_COMMENT);
+
+        List<ObjectNode> users = new ArrayList<>();
+        for(User receiver: receivers) {
+            addUserToUsers(receiver, users);
+        }
+
+        ObjectNode result = Json.newObject();
+        result.put("receivers", toJson(users));
+
+        return ok(result);
+    }
+
     @Transactional
     public static Result newIssueComment(String ownerName, String projectName, Long number)
             throws IOException {
@@ -498,15 +536,53 @@ public class IssueApi extends AbstractPostingApp {
         }
     }
 
-    public static boolean isModifiedByOthers(String current, String rememberedChecksum){
+    public static boolean isModifiedByOthers(String current, String fromView){
         // At present, using .val() on textarea elements strips carriage return characters
         // https://stackoverflow.com/a/8601601/1450196
         // At first, I added hook of above link at the front page.
         // But I found that it introduce another problem, cursor location detection error.
         // So, decided to calculate sha1 without \r char.
         String currentChecksum = DigestUtils.sha1Hex(current.replaceAll("\r","").trim());
+        String fromViewChecksum = DigestUtils.sha1Hex(fromView.replaceAll("\r","").trim());
 
-        return !currentChecksum.equals(rememberedChecksum);
+        return !currentChecksum.equals(fromViewChecksum);
+    }
+
+    public static Result detectChange(String ownerName, String projectName, Long number) {
+        if (UserApp.currentUser().isAnonymous()) {
+            return unauthorized(Json.newObject().put("message", "unauthorized request"));
+        }
+
+        JsonNode json = request().body().asJson();
+        if(json == null) {
+            return badRequest(Json.newObject().put("message", "Expecting Json data"));
+        }
+
+        Project project = Project.findByOwnerAndProjectName(ownerName, projectName);
+        final Issue issue = Issue.findByNumber(project, number);
+
+        ObjectNode result = Json.newObject();
+
+        String receivedChecksum = json.findValue("issueBodyChecksum").asText();
+        int receivedNumOfComments = json.findValue("numOfComments").asInt();
+
+        int currentNumOfComments = issue.computeNumOfComments();
+
+        if( receivedNumOfComments <  currentNumOfComments) {
+            IssueComment issueComment = issue.comments.get(issue.comments.size() - 1);
+            result.put("commentAuthorName", User.findByLoginId(issueComment.authorLoginId).getDisplayName());
+        }
+
+        String hex = DigestUtils.sha1Hex(issue.body);
+        result.put("issueBodyChanged", !hex.equals(receivedChecksum));
+        result.put("numOfComments", currentNumOfComments);
+        result.put("issueBodyChecksum", hex);
+        result.put("issueUpdateDate", issue.updatedDate.getTime());
+
+        result.put("result", "ok");
+
+        return ok(result);
+
     }
 
     public static Status conflicted(String content) {
@@ -529,13 +605,14 @@ public class IssueApi extends AbstractPostingApp {
         }
 
         String comment = json.findValue("content").asText();
-        String rememberedChecksum = json.findValue("sha1").asText();
+        // TODO: It is TOO bulky comparing whole text
+        String original = json.findValue("original").asText();
 
         Project project = Project.findByOwnerAndProjectName(ownerName, projectName);
         final Issue issue = Issue.findByNumber(project, number);
         IssueComment issueComment = issue.findCommentByCommentId(commentId);
 
-        if (isModifiedByOthers(issueComment.contents, rememberedChecksum)) {
+        if (isModifiedByOthers(issueComment.contents, original)) {
             return conflicted(issueComment.contents);
         }
 
@@ -796,6 +873,7 @@ public class IssueApi extends AbstractPostingApp {
         ObjectNode userNode = Json.newObject();
         userNode.put("loginId", user.loginId);
         userNode.put("name", user.getDisplayName());
+        userNode.put("pureNameOnly", user.getPureNameOnly());
         userNode.put("avatarUrl", user.avatarUrl());
         userNode.put("type", "user");
 

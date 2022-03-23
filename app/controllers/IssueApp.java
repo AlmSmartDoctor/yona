@@ -739,6 +739,7 @@ public class IssueApp extends AbstractPostingApp {
                 issue.voters.addAll(originalIssue.voters);
                 issue.comments = originalIssue.comments;
                 issue.sharers.addAll(originalIssue.sharers);
+                issue.weight = originalIssue.weight;
 
                 final Project previous = Project.findByOwnerAndProjectName(ownerName, projectName);
                 if(isRequestedToOtherProject(originalIssue.project, previous)){
@@ -935,10 +936,30 @@ public class IssueApp extends AbstractPostingApp {
                 } else {
                     previousComment = comment.getParentComment();
                 }
+                comment.previousContents = getPrevious("Previous comment", previousComment.contents, previousComment.createdDate, previousComment.authorLoginId);
             } else {
-                previousComment = issue.comments.get(issue.comments.size() - 1);
+                int commentsSize = issue.comments.size();
+
+                if (issue.numOfComments != commentsSize) {
+                    play.Logger.warn("Recalculate comments number of issue: "
+                            + issue.project.owner + "/" + issue.project.name + "/" + issue.getNumber()
+                    + " " + issue.numOfComments + " -> " + commentsSize);
+                    issue.numOfComments = commentsSize;
+                    issue.update();
+                }
+
+                if (commentsSize > 0) {
+                    previousComment = issue.comments.get(commentsSize - 1);
+                    comment.previousContents = getPrevious("Previous comment", previousComment.contents, previousComment.createdDate, previousComment.authorLoginId);
+                } else {
+                    comment.previousContents = getPrevious("Issue", issue.body, issue.updatedDate, issue.authorLoginId);
+                    List<IssueComment> list = IssueComment.find.where().eq("issue.id", issue.id).findList();
+                    for (IssueComment garbageComment: list) {
+                        play.Logger.warn("Garbage comment deleted: " + garbageComment);
+                        garbageComment.delete();
+                    }
+                }
             }
-            comment.previousContents = getPrevious("Previous comment", previousComment.contents, previousComment.createdDate, previousComment.authorLoginId);
         }
     }
 
